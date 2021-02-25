@@ -36,6 +36,7 @@ function getOrientation()
     end
     loc2 = vector.new(gps.locate(2, false))
     heading = loc2 - loc1
+    turtle.back()
     return ((heading.x + math.abs(heading.x) * 2) + (heading.z + math.abs(heading.z) * 3))
 end
 
