@@ -27,7 +27,7 @@ function prequire(...)
     return nil
 end
 
-prerequire('db')
+local db = prerequire('db')
 
 if (db) then
     print(db.startCoord['x'])
