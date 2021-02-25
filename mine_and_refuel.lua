@@ -19,6 +19,27 @@ arrivedToBedrock = false
 inventoryFull = false
 
 
+-- -x = 1
+-- -z = 2
+-- +x = 3
+-- +z = 4
+function getOrientation()
+    loc1 = vector.new(gps.locate(2, false))
+    if not turtle.forward() then
+        for j=1,6 do
+            if not turtle.forward() then
+                turtle.dig()
+            else 
+                break
+            end
+        end
+    end
+    loc2 = vector.new(gps.locate(2, false))
+    heading = loc2 - loc1
+    return ((heading.x + math.abs(heading.x) * 2) + (heading.z + math.abs(heading.z) * 3))
+end
+
+
 -- Startup function
 -- if db is present, read startCoord and recover last run;
 -- if db is missing, save startCoord and enter main loop;
@@ -29,11 +50,12 @@ function startup ()
         startX = startCoord['x']
         startY = startCoord['y']
         startZ = startCoord['z']
+        direction = getOrientation()
     else
         print('db not found, creating it...')
         x,y,z = gps.locate()
         dbFile = fs.open('db','w')
-        dbFile.write(string.format('startCoord = {x = %s, y = %s, z = %s}', x, y, z))
+        dbFile.write(string.format('startCoord = {x = %s, y = %s, z = %s, direction = %s}', x, y, z, getOrientation()))
         dbFile.close()
     end
 end
