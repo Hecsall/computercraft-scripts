@@ -19,21 +19,25 @@ arrivedToBedrock = false
 inventoryFull = false
 
 
--- Recover previous run...
-function prequire(...)
-    local status, lib = pcall(require, ...)
-    if(status) then return lib end
-    --Library failed to load, so perhaps return `nil` or something?
-    return nil
+-- Startup function
+-- if db is present, read startCoord and recover last run;
+-- if db is missing, save startCoord and enter main loop;
+function startup () 
+    -- Test if DB is present
+    local status, db = pcall(require, 'db')
+    if (status) then
+        startX = db.startCoord['x']
+        startY = db.startCoord['y']
+        startZ = db.startCoord['z']
+    else
+        print('db not found, creating it...')
+        x,y,z = gps.locate()
+        dbFile = fs.open('db','w')
+        dbFile = fs.write(string.format('startCoord = {x = %s, y = %s, z = %s}', x, y, z))
+        dbFile.close()
+    end
 end
 
-local db = prerequire('db')
-
-if (db) then
-    print(db.startCoord['x'])
-else
-    print('db not found')
-end
 
 -- Note:
 -- Slot 1   ALWAYS dedicated to fuel
@@ -132,6 +136,7 @@ end
 
 
 -- Main loop until Bedrock is reached
+startup()
 checkInventorySpace()
 while not arrivedToBedrock do
     local currentX = 1
