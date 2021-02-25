@@ -19,10 +19,10 @@ arrivedToBedrock = false
 inventoryFull = false
 
 
--- -x = 1
--- -z = 2
--- +x = 3
--- +z = 4
+-- -x = 1 (West)
+-- -z = 2 (South)
+-- +x = 3 (East)
+-- +z = 4 (North)
 function getOrientation()
     loc1 = vector.new(gps.locate(2, false))
     if not turtle.forward() then
