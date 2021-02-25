@@ -26,9 +26,9 @@ function startup ()
     -- Test if DB is present
     local status, db = pcall(require, 'db')
     if (status) then
-        startX = db.startCoord['x']
-        startY = db.startCoord['y']
-        startZ = db.startCoord['z']
+        startX = startCoord['x']
+        startY = startCoord['y']
+        startZ = startCoord['z']
     else
         print('db not found, creating it...')
         x,y,z = gps.locate()
