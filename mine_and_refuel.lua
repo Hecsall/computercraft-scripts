@@ -33,7 +33,7 @@ function startup ()
         print('db not found, creating it...')
         x,y,z = gps.locate()
         dbFile = fs.open('db','w')
-        dbFile = fs.write(string.format('startCoord = {x = %s, y = %s, z = %s}', x, y, z))
+        dbFile.write(string.format('startCoord = {x = %s, y = %s, z = %s}', x, y, z))
         dbFile.close()
     end
 end
