@@ -18,6 +18,23 @@ currentY = 1
 arrivedToBedrock = false
 inventoryFull = false
 
+
+-- Recover previous run...
+function prequire(...)
+    local status, lib = pcall(require, ...)
+    if(status) then return lib end
+    --Library failed to load, so perhaps return `nil` or something?
+    return nil
+end
+
+prerequire('db')
+
+if (db) then
+    print(db.startCoord['x'])
+else
+    print('db not found')
+end
+
 -- Note:
 -- Slot 1   ALWAYS dedicated to fuel
 -- Slot 2   ALWAYS dedicated to Output Ender Chest
