@@ -18,6 +18,8 @@ currentY = 1
 arrivedToBedrock = false
 inventoryFull = false
 
+-- Variables used for script recovery
+hasRecovered = false
 
 -- -x = 1 (West)
 -- -z = 2 (South)
@@ -48,15 +50,17 @@ function startup ()
     -- Test if DB is present
     local status, db = pcall(require, 'db')
     if (status) then
-        startX = startCoord['x']
-        startY = startCoord['y']
-        startZ = startCoord['z']
+        startX = database['startX']
+        startY = database['startY']
+        startZ = database['startZ']
         direction = getOrientation()
+        holeX = database['holeX']
+        holeY = database['holeY']
     else
         print('db not found, creating it...')
-        x,y,z = gps.locate()
+        startX,startY,startZ = gps.locate()
         dbFile = fs.open('db','w')
-        dbFile.write(string.format('startCoord = {x = %s, y = %s, z = %s, direction = %s}', x, y, z, getOrientation()))
+        dbFile.write(string.format('database = {startX = %s, startY = %s, startZ = %s, direction = %s, holeX = %s, holeY = %s}', startX, startY, startZ, getOrientation(), holeX, holeY))
         dbFile.close()
     end
 end
@@ -158,12 +162,30 @@ function returnHome ()
 end
 
 
+function getCurrentX ()
+    tempX, tempY, tempZ = gps.locate()
+    result = math.abs(startX - tempX)
+    return result + 1
+end
+
+
+function remainingZBlocks ()
+
+    return
+end
+
+
 -- Main loop until Bedrock is reached
 startup()
 checkInventorySpace()
 while not arrivedToBedrock do
-    local currentX = 1
+    if (hasRecovered) then
+        local currentX = getCurrentX()
+    else 
+        local currentX = 1
+    end
     local needZReset = false
+    
     
     local success, bottomBlock = turtle.inspectDown()
     
