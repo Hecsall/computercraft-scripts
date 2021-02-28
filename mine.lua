@@ -12,15 +12,19 @@ if #args ~= 2 then
     error()
 end
 
-holeX = tonumber(args[1], 10)
-holeZ = tonumber(args[2], 10)
-
 currentY = 1
 arrivedToBedrock = false
 inventoryFull = false
 
 -- Variables used for script recovery
 hasRecovered = false
+
+orientations = {
+    [1] = "West";
+    [2] = "South";
+    [3] = "East";
+    [4] = "North";
+}
 
 -- -x = 1 (West)
 -- -z = 2 (South)
@@ -40,7 +44,7 @@ function getOrientation()
     loc2 = vector.new(gps.locate(2, false))
     heading = loc2 - loc1
     turtle.back()
-    return ((heading.x + math.abs(heading.x) * 2) + (heading.z + math.abs(heading.z) * 3))
+    return orientations[((heading.x + math.abs(heading.x) * 2) + (heading.z + math.abs(heading.z) * 3))]
 end
 
 
@@ -50,10 +54,12 @@ end
 -- calculate how to recover what was doing.
 function startup () 
     if (fs.exists("database")) then
+        print('Reading db...')
         local dbFile = fs.open('database','r')
         db = textutils.unserialize(dbFile.readAll())
         dbFile.close()
     else
+        print('Creating db...')
         startX, startY, startZ = gps.locate()
         db = {
             ["startCoord"] = {
@@ -69,28 +75,6 @@ function startup ()
         dbFile.write(textutils.serialize(database))
         dbFile.close()
     end
-
-    
-
-    
-
-
-    -- Test if DB is present
-    local status, db = pcall(require, 'db')
-    if (status) then
-        startX = database['startX']
-        startY = database['startY']
-        startZ = database['startZ']
-        direction = getOrientation()
-        holeX = database['holeX']
-        holeY = database['holeY']
-    else
-        print('db not found, creating it...')
-        startX,startY,startZ = gps.locate()
-        dbFile = fs.open('db','w')
-        dbFile.write(string.format('database = {startX = %s, startY = %s, startZ = %s, direction = %s, holeX = %s, holeY = %s}', startX, startY, startZ, getOrientation(), holeX, holeY))
-        dbFile.close()
-    end
 end
 
 
@@ -103,7 +87,7 @@ end
 -- else run the refuel function
 function checkFuel ()
     local currentFuel = turtle.getFuelLevel()
-    local fuelNeeded = holeX * holeZ
+    local fuelNeeded = db.holeX * db.holeZ
     
     print("Current fuel: " .. currentFuel)
     print("Estimated fuel needed: " .. fuelNeeded)
@@ -186,6 +170,8 @@ function returnHome ()
         end
         currentY = 1
     end
+    
+    shell.run('delete','database')
     return
 end
 
@@ -232,10 +218,10 @@ while not arrivedToBedrock do
     turtle.down()
     currentY = currentY + 1
     
-    digStraight(holeZ - 1)
+    digStraight(db.holeZ - 1)
     turtle.turnRight()
     
-    while (currentX < holeX) do
+    while (currentX < db.holeX) do
         digStraight(1)
         currentX = currentX + 1
         
@@ -245,7 +231,7 @@ while not arrivedToBedrock do
             turtle.turnLeft()
         end
         
-        digStraight(holeZ - 1)
+        digStraight(db.holeZ - 1)
         
         if (currentX % 2 == 0) then
             turtle.turnLeft()
@@ -260,13 +246,13 @@ while not arrivedToBedrock do
     turtle.turnRight()
     turtle.turnRight()
     -- X
-    for i = 1, (holeX - 1) do
+    for i = 1, (db.holeX - 1) do
         turtle.forward()
     end
     -- Z
     if needZReset then
         turtle.turnLeft()
-        for i = 1, (holeZ - 1) do
+        for i = 1, (db.holeZ - 1) do
             turtle.forward()
         end
         turtle.turnRight()
