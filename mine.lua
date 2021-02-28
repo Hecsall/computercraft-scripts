@@ -2,28 +2,29 @@
 -- mineandrefuel <X> <Z>
 -- where X and Z are the length and width of the hole to dig.
 
-
-local args = { ... }
-
-if #args ~= 2 then
-    print( "Usage: mineandrefuel <X> <Z>" )
-    print( "Fuel (coal) must ALWAYS be on slot 1" )
-    print( "Ender Chest must ALWAYS be on slot 2" )
-    error()
-end
-
 currentY = 1
 arrivedToBedrock = false
 inventoryFull = false
 
--- Variables used for script recovery
-hasRecovered = false
-
 orientations = {
     [1] = "West";
-    [2] = "South";
+    [2] = "North";
     [3] = "East";
-    [4] = "North";
+    [4] = "South";
+}
+
+oppositeOrientations = {
+    ["North"] = "South";
+    ["South"] = "North";
+    ["East"] = "West";
+    ["West"] = "East";
+}
+
+rightOrientations = {
+    ["West"] = "North";
+    ["East"] = "South";
+    ["North"] = "East";
+    ["South"] = "West";
 }
 
 -- -x = 1 (West)
@@ -58,7 +59,17 @@ function startup ()
         local dbFile = fs.open('database','r')
         db = textutils.unserialize(dbFile.readAll())
         dbFile.close()
+        print("Resuming previous activity in...")
+        for i=1,10 do
+            print(10 - (i - 1))
+            sleep(1)
+        end
     else
+        print('X length: ')
+        holeX = read()
+        print('Z length: ')
+        holeZ = read()
+
         print('Creating db...')
         startX, startY, startZ = gps.locate()
         db = {
@@ -68,22 +79,27 @@ function startup ()
               z = startZ;
             };
             ["orientation"] = getOrientation();
-            ["holeX"] = tonumber(args[1], 10);
-            ["holeZ"] = tonumber(args[2], 10);
+            ["holeX"] = tonumber(holeX, 10);
+            ["holeZ"] = tonumber(holeZ, 10);
         }
         local dbFile = fs.open('database','w')
-        dbFile.write(textutils.serialize(database))
+        dbFile.write(textutils.serialize(db))
         dbFile.close()
-        print(db)
+        print('Start Orientation: ', db["orientation"])
     end
 end
+
+
+-- Note:
+-- Slot 1   ALWAYS dedicated to fuel
+-- Slot 2   ALWAYS dedicated to Output Ender Chest
 
 
 -- Check if remaining fuel is enough to dig one layer
 -- else run the refuel function
 function checkFuel ()
     local currentFuel = turtle.getFuelLevel()
-    local fuelNeeded = db.holeX * db.holeZ
+    local fuelNeeded = db['holeX'] * db['holeZ']
     
     print("Current fuel: " .. currentFuel)
     print("Estimated fuel needed: " .. fuelNeeded)
@@ -96,10 +112,56 @@ function checkFuel ()
 end
 
 
+-- Get some coal from the Ender Chest
+function refuel ()
+    print("[!] Not enough fuel, refueling")
+    turtle.select(1)
+    turtle.refuel()
+    return
+end
+
+
+function checkInventorySpace ()
+    turtle.select(16)
+    slotIsOccupied = turtle.getItemCount() > 0
+    turtle.select(1)
+    if slotIsOccupied then
+        depositInventory()
+    end
+end
+
+
+function depositInventory ()
+    print("Inventory almost full: deposit in progress...")
+    local spaceForChest = true
+    -- Check if there is space to place the chest
+    if turtle.inspect() then
+        spaceForChest = false
+        turtle.turnLeft()
+        turtle.turnLeft()
+    end
+    
+    turtle.select(2) -- select Ender Chest slot
+    turtle.place()
+    for i = 3, 16 do
+        turtle.select(i)
+        turtle.drop()
+    end
+    turtle.select(2)
+    turtle.dig()
+    turtle.select(1)
+    
+    if not spaceForChest then
+        spaceForChest = true
+        turtle.turnLeft()
+        turtle.turnLeft()
+    end
+end
+
+
 function digStraight (steps)
     for i = 1, steps do
         -- Till there is a block, break it
-        -- Useful with tall pile of sand/gravel
         while turtle.detect() do
             checkInventorySpace()
             turtle.dig()
@@ -120,7 +182,7 @@ function returnHome ()
         end
         currentY = 1
     end
-    
+
     shell.run('delete','database')
     return
 end
@@ -133,12 +195,126 @@ function getCurrentX ()
 end
 
 
--- Main loop until Bedrock is reached
-startup()
-while true do
-    
+function handleRecover ()
+    local recoveredOrientation = getOrientation()
+
+    local startPosition = vector.new(db['startCoord']['x'], db['startCoord']['y'], db['startCoord']['z'])
+    local currentPosition = vector.new(gps.locate())
+    local distance = startPosition:sub(currentPosition)
+    -- if turtle is in a different position than start position
+    -- return to start position (except for Y axis)
+    if (distance:length() ~= 0) then
+
+        if (db['orientation'] == 'North' or db['orientation'] == 'South') then
+            movesX = math.abs(distance.x)
+            movesZ = math.abs(distance.z)
+        else
+            movesX = math.abs(distance.z)
+            movesZ = math.abs(distance.x)
+        end
+
+        -- Turtle in same orientation than start
+        if (recoveredOrientation == db['orientation']) then
+            turtle.turnLeft()
+            digStraight(movesX)
+            turtle.turnLeft()
+            digStraight(movesZ)
+            turtle.turnLeft()
+            turtle.turnLeft()
+            turtle.up()
+        elseif (recoveredOrientation == oppositeOrientations[db['orientation']]) then
+            turtle.turnRight()
+            digStraight(movesX)
+            turtle.turnLeft()
+            digStraight(movesZ)
+            turtle.turnLeft()
+            turtle.turnLeft()
+            turtle.up()
+        elseif (recoveredOrientation == rightOrientations[db['orientation']]) then
+            turtle.turnRight()
+            turtle.turnRight()
+            digStraight(movesX)
+            turtle.turnLeft()
+            digStraight(movesZ)
+            turtle.turnLeft()
+            turtle.turnLeft()
+            turtle.up()
+        end
+    end
 end
 
+
+-- Main loop until Bedrock is reached
+startup()
+checkInventorySpace()
+handleRecover()
+while not arrivedToBedrock do
+    local currentX = 1
+    local needZReset = false
+    
+    local success, bottomBlock = turtle.inspectDown()
+    
+    if (bottomBlock.name == 'minecraft:bedrock') then
+        arrivedToBedrock = true
+        returnHome()
+        return -- end the while
+    end
+    
+    checkFuel()
+    
+    -- select slot 3 to 
+    turtle.select(3)
+    
+    turtle.digDown()
+    turtle.down()
+    currentY = currentY + 1
+    
+    digStraight(db['holeZ'] - 1)
+    turtle.turnRight()
+    
+    while (currentX < db['holeX']) do
+        digStraight(1)
+        currentX = currentX + 1
+        
+        if (currentX % 2 == 0) then
+            turtle.turnRight()
+        else
+            turtle.turnLeft()
+        end
+        
+        digStraight(db['holeZ'] - 1)
+        
+        if (currentX % 2 == 0) then
+            turtle.turnLeft()
+            needZReset = false
+        else
+            turtle.turnRight()
+            needZReset = true
+        end
+    end
+    
+    -- Return to starting position
+    turtle.turnRight()
+    turtle.turnRight()
+    -- X
+    for i = 1, (db['holeX'] - 1) do
+        turtle.forward()
+    end
+    -- Z
+    if needZReset then
+        turtle.turnLeft()
+        for i = 1, (db['holeZ'] - 1) do
+            turtle.forward()
+        end
+        turtle.turnRight()
+        turtle.turnRight()
+        needZReset = false
+    else
+        turtle.turnRight()
+    end
+    
+    currentX = 1
+end
 
 -- End of script
 return
