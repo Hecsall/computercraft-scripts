@@ -27,9 +27,9 @@ orientations = {
 }
 
 -- -x = 1 (West)
--- -z = 2 (South)
+-- -z = 2 (North)
 -- +x = 3 (East)
--- +z = 4 (North)
+-- +z = 4 (South)
 function getOrientation()
     loc1 = vector.new(gps.locate(2, false))
     if not turtle.forward() then
@@ -74,13 +74,9 @@ function startup ()
         local dbFile = fs.open('database','w')
         dbFile.write(textutils.serialize(database))
         dbFile.close()
+        print(db)
     end
 end
-
-
--- Note:
--- Slot 1   ALWAYS dedicated to fuel
--- Slot 2   ALWAYS dedicated to Output Ender Chest
 
 
 -- Check if remaining fuel is enough to dig one layer
@@ -100,56 +96,10 @@ function checkFuel ()
 end
 
 
--- Get some coal from the Ender Chest
-function refuel ()
-    print("[!] Not enough fuel, refueling")
-    turtle.select(1)
-    turtle.refuel()
-    return
-end
-
-
-function checkInventorySpace ()
-    turtle.select(16)
-    slotIsOccupied = turtle.getItemCount() > 0
-    turtle.select(1)
-    if slotIsOccupied then
-        depositInventory()
-    end
-end
-
-
-function depositInventory ()
-    print("Inventory almost full: deposit in progress...")
-    local spaceForChest = true
-    -- Check if there is space to place the chest
-    if turtle.inspect() then
-        spaceForChest = false
-        turtle.turnLeft()
-        turtle.turnLeft()
-    end
-    
-    turtle.select(2) -- select Ender Chest slot
-    turtle.place()
-    for i = 3, 16 do
-        turtle.select(i)
-        turtle.drop()
-    end
-    turtle.select(2)
-    turtle.dig()
-    turtle.select(1)
-    
-    if not spaceForChest then
-        spaceForChest = true
-        turtle.turnLeft()
-        turtle.turnLeft()
-    end
-end
-
-
 function digStraight (steps)
     for i = 1, steps do
         -- Till there is a block, break it
+        -- Useful with tall pile of sand/gravel
         while turtle.detect() do
             checkInventorySpace()
             turtle.dig()
@@ -183,86 +133,10 @@ function getCurrentX ()
 end
 
 
-function remainingZBlocks ()
-
-    return
-end
-
-
 -- Main loop until Bedrock is reached
 startup()
-checkInventorySpace()
-while not arrivedToBedrock do
-    if (hasRecovered) then
-        local currentX = getCurrentX()
-    else 
-        local currentX = 1
-    end
-    local needZReset = false
+while true do
     
-    
-    local success, bottomBlock = turtle.inspectDown()
-    
-    if (bottomBlock.name == 'minecraft:bedrock') then
-        arrivedToBedrock = true
-        returnHome()
-        return -- end the while
-    end
-    
-    checkFuel()
-    
-    -- select slot 3 to 
-    turtle.select(3)
-    
-    turtle.digDown()
-    turtle.down()
-    currentY = currentY + 1
-    
-    digStraight(db.holeZ - 1)
-    turtle.turnRight()
-    
-    while (currentX < db.holeX) do
-        digStraight(1)
-        currentX = currentX + 1
-        
-        if (currentX % 2 == 0) then
-            turtle.turnRight()
-        else
-            turtle.turnLeft()
-        end
-        
-        digStraight(db.holeZ - 1)
-        
-        if (currentX % 2 == 0) then
-            turtle.turnLeft()
-            needZReset = false
-        else
-            turtle.turnRight()
-            needZReset = true
-        end
-    end
-    
-    -- Return to starting position
-    turtle.turnRight()
-    turtle.turnRight()
-    -- X
-    for i = 1, (db.holeX - 1) do
-        turtle.forward()
-    end
-    -- Z
-    if needZReset then
-        turtle.turnLeft()
-        for i = 1, (db.holeZ - 1) do
-            turtle.forward()
-        end
-        turtle.turnRight()
-        turtle.turnRight()
-        needZReset = false
-    else
-        turtle.turnRight()
-    end
-    
-    currentX = 1
 end
 
 
