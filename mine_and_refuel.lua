@@ -18,54 +18,6 @@ currentY = 1
 arrivedToBedrock = false
 inventoryFull = false
 
--- Variables used for script recovery
-hasRecovered = false
-
--- -x = 1 (West)
--- -z = 2 (South)
--- +x = 3 (East)
--- +z = 4 (North)
-function getOrientation()
-    loc1 = vector.new(gps.locate(2, false))
-    if not turtle.forward() then
-        for j=1,6 do
-            if not turtle.forward() then
-                turtle.dig()
-            else 
-                break
-            end
-        end
-    end
-    loc2 = vector.new(gps.locate(2, false))
-    heading = loc2 - loc1
-    turtle.back()
-    return ((heading.x + math.abs(heading.x) * 2) + (heading.z + math.abs(heading.z) * 3))
-end
-
-
--- Startup function
--- if db is present, read startCoord and recover last run;
--- if db is missing, save startCoord and enter main loop;
-function startup () 
-    -- Test if DB is present
-    local status, db = pcall(require, 'db')
-    if (status) then
-        startX = database['startX']
-        startY = database['startY']
-        startZ = database['startZ']
-        direction = getOrientation()
-        holeX = database['holeX']
-        holeY = database['holeY']
-    else
-        print('db not found, creating it...')
-        startX,startY,startZ = gps.locate()
-        dbFile = fs.open('db','w')
-        dbFile.write(string.format('database = {startX = %s, startY = %s, startZ = %s, direction = %s, holeX = %s, holeY = %s}', startX, startY, startZ, getOrientation(), holeX, holeY))
-        dbFile.close()
-    end
-end
-
-
 -- Note:
 -- Slot 1   ALWAYS dedicated to fuel
 -- Slot 2   ALWAYS dedicated to Output Ender Chest
@@ -162,30 +114,11 @@ function returnHome ()
 end
 
 
-function getCurrentX ()
-    tempX, tempY, tempZ = gps.locate()
-    result = math.abs(startX - tempX)
-    return result + 1
-end
-
-
-function remainingZBlocks ()
-
-    return
-end
-
-
 -- Main loop until Bedrock is reached
-startup()
 checkInventorySpace()
 while not arrivedToBedrock do
-    if (hasRecovered) then
-        local currentX = getCurrentX()
-    else 
-        local currentX = 1
-    end
+    local currentX = 1
     local needZReset = false
-    
     
     local success, bottomBlock = turtle.inspectDown()
     
